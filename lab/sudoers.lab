@@ -1,0 +1,24 @@
+# =============================================================================
+#  sudoers de LABORATORIO — intencionalmente permisivo
+# -----------------------------------------------------------------------------
+#  Cada regla introduce, a propósito, una "señal" que el diagnóstico detecta y
+#  que una de las CVE estudiadas sabe abusar. mitigate.sh las corrige.
+#
+#  Nota clave: el usuario 'webuser' (el foothold tras el acceso inicial) NO
+#  aparece aquí. Es a propósito: CVE-2025-32463 (chroot) escala a root AUNQUE
+#  el usuario no tenga ninguna regla de sudo. Eso es lo que la vuelve crítica.
+# =============================================================================
+
+Defaults !requiretty
+
+# Señal de CVE-2019-14287 — especificación Runas con ALL + negación de root.
+# 'operador' puede correr vi como cualquiera MENOS root... salvo por el bug -u#-1.
+operador ALL=(ALL, !root) /usr/bin/vi
+
+# Señal de CVE-2025-32462 — regla calificada por un host distinto al actual.
+# El contenedor se llama 'srv-web'; esta regla es para 'clinica-legacy'.
+auditor clinica-legacy=(ALL) /usr/bin/less
+
+# Señal de CVE-2023-22809 — regla de sudoedit sobre un archivo acotado,
+# abusable vía la variable EDITOR con '--'.
+editor ALL=(root) sudoedit /etc/motd

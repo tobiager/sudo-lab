@@ -1,0 +1,30 @@
+# =============================================================================
+#  sudo-lab · orquestación del laboratorio
+#  Levantá todo con:  docker compose up -d --build
+# =============================================================================
+services:
+  target:
+    build:
+      context: ./lab
+      args:
+        # Versión de sudo a estudiar. Vulnerable a CVE-2025-32463: 1.9.14–1.9.17.
+        SUDO_VERSION: "1.9.15"
+    image: sudo-lab-target
+    container_name: sudo-lab-target
+    hostname: srv-web
+    # Montamos los scripts como volumen: editás scan.sh/mitigate.sh sin rebuild.
+    volumes:
+      - ./scripts:/opt/lab/scripts:ro
+    # /tmp como tmpfs (ejecutable por defecto). mitigate.sh lo remonta noexec
+    # como control compensatorio; por eso necesita CAP SYS_ADMIN.
+    tmpfs:
+      - /tmp:exec,mode=1777
+    cap_add:
+      - SYS_ADMIN
+    # El contenedor queda aislado; sólo lo tocan el dashboard y 'docker exec'.
+    networks:
+      - labnet
+
+networks:
+  labnet:
+    driver: bridge
