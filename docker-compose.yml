@@ -8,7 +8,7 @@ services:
       context: ./lab
       args:
         # Versión de sudo a estudiar. Vulnerable a CVE-2025-32463: 1.9.14–1.9.17.
-        SUDO_VERSION: "1.9.15"
+        SUDO_VERSION: "${SUDO_VERSION:-1.9.15}"
     image: sudo-lab-target
     container_name: sudo-lab-target
     hostname: srv-web
@@ -19,6 +19,7 @@ services:
     # como control compensatorio; por eso necesita CAP SYS_ADMIN.
     tmpfs:
       - /tmp:exec,mode=1777
+    # SYS_ADMIN reduce el aislamiento del contenedor: se usa solo para remontar /tmp.
     cap_add:
       - SYS_ADMIN
     # El contenedor queda aislado; sólo lo tocan el dashboard y 'docker exec'.

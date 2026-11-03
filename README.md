@@ -104,9 +104,14 @@ al estado vulnerable para repetir la demo.
 
 ## CVEs evaluadas
 
+La demostración se centra en **CVE-2025-32463** y **CVE-2025-32462**, las dos que afectan
+a `sudo 1.9.15`. Las otras tres se evalúan y se nombran para completar el panorama: con
+esta versión el diagnóstico las informa como `NO_AFECTADO`. Para verlas `EXPLOTABLE` hay
+que reconstruir con una versión más antigua (`SUDO_VERSION`).
+
 | CVE | Vector | Rango vulnerable | Precondición que chequea el lab |
 | --- | --- | --- | --- |
-| CVE-2025-32463 | chroot / NSS (crítica 9.3) | 1.9.14 – 1.9.17 | versión en rango + `/tmp` ejecutable |
+| CVE-2025-32463 | chroot / NSS (crítica 9.3) | 1.9.14 – 1.9.17 | versión en rango + opción `--chroot` (no depende de sudoers ni de `/tmp`) |
 | CVE-2025-32462 | opción host (baja 2.8) | 1.8.8–1.8.32 / 1.9.0–1.9.17 | regla de sudoers calificada por host remoto |
 | CVE-2023-22809 | `sudoedit` + EDITOR (alta 7.8) | 1.8.0 – 1.9.12p1 | regla de `sudoedit` en sudoers |
 | CVE-2021-3156 | Baron Samedit (alta 7.8) | 1.8.2–1.8.31p2 / 1.9.0–1.9.5p1 | chequeo seguro `sudoedit -s /` (método Qualys) |
@@ -121,13 +126,19 @@ precondición presente* → `EXPLOTABLE`; *versión vulnerable pero precondició
 ## Mitigaciones que aplica `mitigate.sh`
 
 1. **Hardening de `sudoers`** — elimina la negación en Runas (2019), la regla de
-   `sudoedit` amplia (2023) y la regla calificada por host remoto (2462).
-2. **`/tmp` noexec,nosuid,nodev** — control compensatorio que impide ejecutar el `.so`
-   que las técnicas de chroot (2025-32463) y Baron Samedit necesitan preparar.
+   `sudoedit` amplia (2023) y la regla calificada por host remoto (2462). Con eso
+   CVE-2025-32462 pasa a `MITIGADO`.
+2. **`/tmp` noexec,nosuid,nodev** — defensa en profundidad. **No** cierra CVE-2025-32463:
+   el directorio chroot puede estar en cualquier ruta escribible, por lo que el
+   diagnóstico la sigue marcando `EXPLOTABLE`.
 
-> La mitigación **completa** de las CVE de 2025 es actualizar a `sudo 1.9.17p1` o
-> posterior. Los controles de arriba son **compensatorios**, pensados para el escenario
-> del informe: un sistema *legacy* que no puede parchearse sin romper el servicio.
+> La corrección real de las dos CVE de 2025 es **actualizar a `sudo 1.9.17p1`** o
+> posterior. Para comprobarlo:
+>
+> ```bash
+> SUDO_VERSION=1.9.17p1 docker compose up -d --build
+> docker exec sudo-lab-target bash /opt/lab/scripts/scan.sh   # ambas: NO_AFECTADO
+> ```
 
 ---
 
@@ -155,7 +166,7 @@ sudo-lab/
 
 - **Fase 1 (acceso inicial por Apache)** → documentada en el informe; en el lab se
   representa con el usuario `webuser` (foothold sin privilegios).
-- **Fase 2 (escalada por sudo)** → `scan.sh` prueba que todas las precondiciones de
-  CVE-2025-32463 se cumplen; la ejecución del PoC público es opcional y externa.
+- **Fase 2 (escalada por sudo)** → `scan.sh` confirma que el sistema está en rango
+  vulnerable de CVE-2025-32463; la ejecución del PoC público es opcional y externa.
 - **Fase 3 (defensa)** → `mitigate.sh` + re-escaneo = evidencia de qué controles
-  funcionan y cuáles no, tal como analiza la sección de mitigación.
+  funcionan (cierran 32462) y cuáles no (32463 solo se corrige con el parche).

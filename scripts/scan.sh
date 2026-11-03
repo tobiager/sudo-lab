@@ -31,13 +31,14 @@ printf 'V\t%s\n' "${VER:-desconocida}"
 step "Diagnóstico de exposición — sudo ${VER:-?} en $HOSTN"
 
 # ---- Precondiciones del sistema (compartidas) -------------------------------
-# /tmp ejecutable: necesario para montar el .so malicioso (chroot / Baron Samedit).
+# /tmp ejecutable. Dato INFORMATIVO: el directorio chroot puede estar en cualquier
+# ruta escribible por el usuario, asi que NO condiciona la explotabilidad.
 tmp_exec() {
   local opts; opts="$(findmnt -no OPTIONS /tmp 2>/dev/null || echo exec)"
   [[ "$opts" == *noexec* ]] && return 1 || return 0
 }
 # Opción chroot presente en este binario de sudo.
-chroot_opt() { sudo -h 2>&1 | grep -qE '(^|[^a-z])-R|--chroot' && return 0 || return 0; }
+chroot_opt() { sudo -h 2>&1 | grep -qE -- '(^|[[:space:]])-R,|--chroot'; }
 
 # Señales en sudoers.
 sig_runas_neg()  { sudoers_rules | grep -qE '\(\s*ALL\s*,\s*![A-Za-z]'; }   # (ALL, !root)
@@ -76,11 +77,13 @@ decide() { # <version_vuln 0|1> <precond_met 0|1>
 b() { [ "$1" = true ] && echo 1 || echo 0; }
 
 # ===== CVE-2025-32463 — chroot / carga de NSS (crítica) ======================
+# Precondición real: versión en rango + opción --chroot disponible. No depende del
+# sudoers ni de /tmp, por eso ningún control compensatorio la cierra: solo el parche.
 vv=false; ver_in_range "$VER" 1.9.14 1.9.17 && vv=true
-pm=false; tmp_exec && pm=true     # precondición práctica: poder ejecutar el .so staged
-pre="tmp_exec=$([ "$pm" = true ] && echo si || echo no);chroot=$(sudo -V >/dev/null 2>&1 && echo si || echo si)"
+pm=false; chroot_opt && pm=true
+pre="opcion_chroot=$([ "$pm" = true ] && echo si || echo no);tmp_exec_informativo=$(tmp_exec && echo si || echo no)"
 emit "CVE-2025-32463" "chroot/NSS" "Critica(9.3)" "$(b $vv)" "$(decide "$(b $vv)" "$(b $pm)")" "$pre" \
-     "Escala a root sin reglas de sudo; requiere /tmp ejecutable para el .so"
+     "Escala a root sin reglas de sudo; solo se corrige actualizando a 1.9.17p1+"
 
 # ===== CVE-2025-32462 — opción host ==========================================
 vv=false; { ver_in_range "$VER" 1.9.0 1.9.17 || ver_in_range "$VER" 1.8.8 1.8.32; } && vv=true
@@ -102,7 +105,8 @@ vv=false; { ver_in_range "$VER" 1.8.2 1.8.31p2 || ver_in_range "$VER" 1.9.0 1.9.
 # error de memoria; en versión parcheada responde con 'usage:'. No explota nada.
 pm=false
 if [ "$vv" = true ]; then
-  out="$(sudoedit -s / 2>&1 || true)"
+  # Se ejecuta como usuario sin privilegios (como indica el chequeo de Qualys).
+  out="$(su -s /bin/bash webuser -c 'sudoedit -s /' 2>&1 || true)"
   echo "$out" | grep -qiE 'usage:' || pm=true
 fi
 pre="deteccion_sudoedit_s=$([ "$pm" = true ] && echo vulnerable || echo parcheado)"

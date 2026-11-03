@@ -31,8 +31,8 @@ Access* + *Execution*.
 ## Fase 2 — Escalada de privilegios con sudo (CVE-2025-32463)
 
 **En el lab:** el contenedor trae `sudo` en rango vulnerable (1.9.14–1.9.17) con la opción
-`--chroot` disponible y `/tmp` ejecutable. `scan.sh` **confirma, sin explotar**, que todas
-las precondiciones se cumplen.
+`--chroot` disponible. `scan.sh` **confirma, sin explotar**, que las precondiciones se
+cumplen. No depende de sudoers ni de `/tmp`.
 
 **Causa raíz (resumen):** al invocar `sudo --chroot <dir>`, las versiones afectadas hacen
 `chroot()` al directorio controlado por el atacante **antes** de terminar de evaluar la
@@ -51,6 +51,6 @@ corre el laboratorio, siempre en aislamiento. En MITRE ATT&CK: *Privilege Escala
 ## Fase 3 — Defensa
 
 `mitigate.sh` aplica controles compensatorios (hardening de `sudoers` + `/tmp` noexec) y
-`scan.sh` se vuelve a correr para **verificar** que los hallazgos pasan de `EXPLOTABLE` a
-`MITIGADO`. Es la evidencia reproducible que fundamenta la sección de mitigación del
-informe.
+`scan.sh` se vuelve a correr para **verificar** el efecto: CVE-2025-32462 pasa a
+`MITIGADO`; CVE-2025-32463 sigue `EXPLOTABLE`, porque solo se corrige actualizando sudo a
+1.9.17p1 o posterior. Es la evidencia reproducible de por qué parchear es insustituible.
