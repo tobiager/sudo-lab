@@ -6,8 +6,6 @@
 
 **Laboratorio reproducible de diagnóstico y mitigación de vulnerabilidades de `sudo`.**
 
-[![ci](https://github.com/USUARIO/sudo-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/USUARIO/sudo-lab/actions/workflows/ci.yml)
-
 </div>
 
 Anexo práctico del trabajo de investigación *"Vulnerabilidades en sudo: escalada de
