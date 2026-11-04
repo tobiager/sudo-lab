@@ -10,4 +10,13 @@ build/
 *.log
 *.tsbuildinfo
 
-poc/
+# Sólo el directorio de PoCs de la RAÍZ del repo, no cualquier carpeta "poc"
+# (sin la barra inicial esto ignoraba también dashboard/app/api/poc/).
+# Los PoC reales (poc_*.sh) los coloca el operador y NO se versionan (SECURITY.md §3).
+# Se ignora el CONTENIDO de /poc/, no el directorio en sí: así el .gitkeep de
+# abajo puede re-incluirse (no se puede re-incluir un archivo si su directorio
+# padre está ignorado entero con `/poc/`).
+/poc/*
+# ...pero el .gitkeep sí: así el bind-mount ./poc:/opt/lab/poc:ro del compose
+# no falla en un clon limpio.
+!/poc/.gitkeep

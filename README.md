@@ -87,8 +87,8 @@ actualizar a `sudo 1.9.17p1` o superior.
 <td align="center"><b>③ Después — <code>MITIGADO</code></b></td>
 </tr>
 <tr>
-<td><img src="assets/dashboard-pre.png" alt="Dashboard: 2 CVEs EXPLOTABLE"></td>
-<td><img src="assets/dashboard-post.png" alt="Dashboard: 2 CVEs MITIGADO"></td>
+<td><img src="assets/diagnostico-explotable.png" alt="Dashboard: 2 CVEs EXPLOTABLE"></td>
+<td><img src="assets/mitigacion-aplicada.png" alt="Dashboard: 2 CVEs MITIGADO"></td>
 </tr>
 </table>
 
