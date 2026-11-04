@@ -26,7 +26,12 @@ protocolo de medición de [`docs/METHODOLOGY.md`](METHODOLOGY.md) §2 y al contr
 | Corrida | CVE-2025-32463 (chroot/NSS) | CVE-2025-32462 (host) | Históricas (22809 / 3156 / 14287) | Resumen |
 |---|---|---|---|---|
 | Pre-mitigación | `EXPLOTABLE` | `EXPLOTABLE` | `NO_AFECTADO` ×3 | 2 explotable(s), 0 mitigado(s), 3 no afectado(s) |
-| Post-mitigación | `MITIGADO` | `MITIGADO` | `NO_AFECTADO` ×3 | 0 explotable(s), 2 mitigado(s), 3 no afectado(s) |
+| Post-mitigación | `EXPLOTABLE` | `MITIGADO` | `NO_AFECTADO` ×3 | 1 explotable(s), 1 mitigado(s), 3 no afectado(s) |
+
+CVE-2025-32463 permanece `EXPLOTABLE` tras `mitigate.sh`: su precondición es la opción
+`chroot` del binario (capacidad de compilación, no de configuración), y ningún control de
+`sudoers` ni de montaje la cierra (`docs/SCOPE.md` §8, excepción documentada a la regla 1).
+Este es el comportamiento correcto y verificado del diagnóstico, no una corrida fallida.
 
 ---
 
@@ -69,7 +74,8 @@ Acciones registradas por `mitigate.sh` (③) en la corrida del 31-10-2026:
    `noexec`.
 3. Verificación de consistencia: `visudo -c` global OK.
 
-Re-diagnóstico (①) posterior: CVE-2025-32463 `MITIGADO (chroot/NSS)` y CVE-2025-32462
+Re-diagnóstico (①) posterior: CVE-2025-32463 sigue `EXPLOTABLE (chroot/NSS)` —el control de
+`/tmp` es defensa en profundidad, no cierra la precondición real— y CVE-2025-32462 pasa a
 `MITIGADO (host)` — tabla de la §2.
 
 ---
@@ -80,8 +86,12 @@ Mismos parámetros (N=5, timeout 30 s, criterio dual, mismas identidades).
 
 | PoC | Identidad | CVE | iter 1 | iter 2 | iter 3 | iter 4 | iter 5 | Éxitos/N | Tasa (M3) | Media | Mín | Máx | Estado por iteración |
 |---|---|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---|
-| `poc_32463.sh` | `webuser` | 2025-32463 | 62 | 64 | 63 | 64 | 62 | 0/5 | **0 %** | 63.0 | 62 | 64 | `MITIGADO` ×5 |
+| `poc_32463.sh` | `webuser` | 2025-32463 | 62 | 64 | 63 | 64 | 62 | 0/5 | **0 %** | 63.0 | 62 | 64 | `EXPLOTABLE` ×5¹ |
 | `poc_32462.sh` | `auditor` | 2025-32462 | 5754 | 5065 | 4970 | 4479 | 3911 | 0/5 | **0 %** | 4835.8 | 3911 | 5754 | `MITIGADO` ×5 |
+
+¹ El estado de diagnóstico de CVE-2025-32463 es `EXPLOTABLE` en todo momento tras
+`mitigate.sh` (no depende de la iteración del PoC): la columna refleja el valor correcto de
+`scan.sh` corregido, aunque el PoC puntual usado en esta corrida sí falle (ver §6).
 
 ---
 
@@ -93,17 +103,22 @@ Mismos parámetros (N=5, timeout 30 s, criterio dual, mismas identidades).
 | `poc_32462.sh` | 100 % (5/5) | 0 % (0/5) | −100 pp | 2740.8 | 4835.8 | +2095.0 ms (+76.4 %) |
 | **Global** | **100 % (10/10)** | **0 % (0/10)** | **−100 pp** | — | — | — |
 
-**La mitigación fue 100 % efectiva**: ambos PoC pasan de 5/5 escaladas a 0/5, de manera
-consistente con el diagnóstico (ambas CVEs de `EXPLOTABLE` a `MITIGADO`) y con el resultado
-esperado por el contrato M5 (tasa post-mitigación = 0 % cuando el control aplica).
+**Los dos PoC medidos pasan de 5/5 escaladas a 0/5**, pero esto **no** significa que las dos
+CVEs queden cerradas por igual — el diagnóstico de la tabla §2 es la fuente de verdad sobre
+el estado de cada CVE, y ahí sólo CVE-2025-32462 pasa a `MITIGADO`:
 
-- **CVE-2025-32463** queda bloqueado por el control de sistema de archivos: con `/tmp`
-  `noexec`, el `.so` que el PoC compila en su escenario no puede mapearse ejecutable, la
-  inyección NSS no llega a disparar el constructor y `sudo` continúa y termina sin escalada.
-  El PoC sigue corriendo completo (≈63 ms), es decir, el control no rompe el arnés: rompe el
-  exploit.
 - **CVE-2025-32462** queda bloqueado por el control de configuración: la eliminación de la
-  regla `auditor clinica-legacy=...` quita todo match posible para el host suplantado.
+  regla `auditor clinica-legacy=...` quita todo match posible para el host suplantado. Esto
+  **sí** cierra la CVE a nivel de sistema, no sólo el PoC puntual: sin esa regla, ningún
+  `sudo -h` puede suplantar ese host. Coincide con el resultado esperado por M5.
+- **CVE-2025-32463**: el `poc_32463.sh` usado en esta corrida hace el *staging* de su `.so`
+  en `/tmp`; con `/tmp` `noexec` ese binario concreto no puede mapearse ejecutable y el PoC
+  termina sin escalar. Eso explica la tasa 0 % **de este PoC**, pero no cierra la CVE: el
+  atacante puede repetir el mismo ataque usando cualquier otro directorio que controle y que
+  permita ejecución (`$HOME`, `/var/tmp`, `/dev/shm`), razón por la cual `scan.sh` sigue
+  informando `EXPLOTABLE` (tabla §2, `docs/SCOPE.md` §8, `docs/LIMITATIONS.md` L-5). La
+  lectura correcta de este dato es: *"el control de `/tmp` neutraliza esta variante del PoC,
+  no la vulnerabilidad"*.
 - **Sobre el aumento de tiempo del 32462 (+76.4 %):** no constituye overhead del control. Con
   la regla eliminada, `sudo` deniega y la automatización pty agota su secuencia completa de
   pausas y reintentos ante la denegación. Cuando la tasa de éxito es 0 %, el tiempo deja de
