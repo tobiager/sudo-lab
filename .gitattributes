@@ -1,1 +1,7 @@
 *.sh text eol=lf
+Makefile text eol=lf
+# Archivos que terminan dentro del contenedor Linux y que un parser estricto
+# (visudo) rechaza si llevan CRLF. En Windows con core.autocrlf=true, sin esta
+# linea git los entrega con CRLF al hacer checkout y la build del lab falla.
+lab/sudoers.lab text eol=lf
+lab/Dockerfile text eol=lf

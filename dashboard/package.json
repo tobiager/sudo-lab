@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "tsx --test lib/lab.test.ts"
+    
   },
   "dependencies": {
     "next": "^16.4.4",
