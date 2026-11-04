@@ -170,7 +170,8 @@ make mitigate > evidencia/mitigate.out
 #   recordatorio: la mitigación completa es sudo 1.9.17p1+.
 
 make scan > evidencia/scan-post.tsv
-# Esperado: S<TAB>0<TAB>2<TAB>3   (CVE-2025-32463 y 32462 -> MITIGADO; sin EXPLOTABLE)
+# Esperado: S<TAB>1<TAB>1<TAB>3   (32462 -> MITIGADO; 32463 sigue EXPLOTABLE: no tiene
+#   mitigacion de configuracion real, ver SCOPE.md §8 y LIMITATIONS.md L-5)
 ```
 
 ### Paso F — Corrida POST-mitigación (tablas §5 y §6 de RESULTS.md)
@@ -184,7 +185,7 @@ Contrato de la corrida post:
 | Dato | Esperado | Naturaleza |
 |---|---|---|
 | Tasa 32463 y 32462 | **0/5 = 0 %** cada uno | Determinista (con los controles aplicados) |
-| Estados por iteración | `MITIGADO` ×5 en cada PoC | Determinista |
+| Estado de diagnóstico por iteración | 32462: `MITIGADO` ×5. 32463: `EXPLOTABLE` ×5 (el PoC puntual falla por `/tmp noexec`, pero la CVE no se cierra; `SCOPE.md` §8) | Determinista |
 | Media 32463 | ≈ 60–70 ms | Referencial: el PoC corre completo pero no escala |
 | Media 32462 | mayor que la pre (ref.: 4835.8 ms) | Referencial: la pty agota su secuencia ante la denegación; **no es overhead del control** (lectura condicionada de M4, `RESULTS.md` §6) |
 
