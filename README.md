@@ -171,7 +171,7 @@ Si usás este laboratorio o sus resultados, citá el trabajo asociado:
                   Universidad Nacional del Nordeste (UNNE), Corrientes, Argentina},
   note         = {Redes de Datos / Software Seguro,
                   Licenciatura en Sistemas de Información. Anexo práctico: sudo-lab},
-  howpublished = {\url{https://github.com/<tobiager>/sudo-lab}}
+  howpublished = {\url{https://github.com/tobiager/sudo-lab}}
 }
 ```
 
