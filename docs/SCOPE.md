@@ -7,7 +7,7 @@ Si algún otro archivo del repositorio entra en contradicción con este document
 
 ## 1. Propósito
 
-`sudo-lab` es un laboratorio **educativo y defensivo** que diagnostica, mitiga y —opcionalmente— mide la explotación de vulnerabilidades de escalada de privilegios local en `sudo`, sobre un contenedor reproducible con una versión real y vulnerable del binario. Es el anexo práctico del trabajo de investigación *“Vulnerabilidades en sudo: escalada de privilegios local, explotación en laboratorio y mitigación”* (Redes de Datos / Software Seguro, Licenciatura en Sistemas de Información, UNNE – FaCENA).
+`sudo-lab` es un laboratorio **educativo y defensivo** que diagnostica, mitiga y —opcionalmente— mide la explotación de vulnerabilidades de escalada de privilegios local en `sudo`, sobre un contenedor reproducible con una versión real y vulnerable del binario. Es el anexo práctico del trabajo de investigación *“Bugs en sudo: escalada de privilegios local, diagnóstico en laboratorio y mitigación”* (Redes de Datos / Software Seguro, Licenciatura en Sistemas de Información, UNNE – FaCENA).
 
 El laboratorio fundamenta el informe con **evidencia reproducible**: demuestra que el sistema cumple las precondiciones de explotación de cada CVE y prueba que las mitigaciones las cierran.
 
@@ -42,7 +42,7 @@ Objeto central del paper y única superficie donde se contempla la medición con
 
 | CVE | Vector | Rango vulnerable | Precondición que evalúa el lab | Severidad |
 |---|---|---|---|---|
-| CVE-2025-32463 | `chroot` / carga de NSS (`-R`, `--chroot`) | 1.9.14 – 1.9.17 | versión en rango + `/tmp` ejecutable + opción `chroot` disponible en el binario | Crítica (9.3) |
+| CVE-2025-32463 | `chroot` / carga de NSS (`-R`, `--chroot`) | 1.9.14 – 1.9.17 | versión en rango + `/tmp` ejecutable (la disponibilidad de la opción `chroot` en el binario es informativa; el estado lo decide `/tmp` ejecutable, según `scan.sh`) | Crítica (9.3) |
 | CVE-2025-32462 | regla de `sudoers` calificada por host remoto | 1.8.8 – 1.8.32 / 1.9.0 – 1.9.17 | regla calificada por un host distinto del local (en el lab: `clinica-legacy`) | Baja (2.8) |
 
 CVE-2025-32463 es crítica porque escala a root **sin que el usuario figure en `sudoers`**: basta un `sudo` vulnerable y un directorio `chroot` controlado por el atacante. Por eso el `webuser` del escenario —que no tiene ninguna regla de sudo— es un foothold válido para ella.

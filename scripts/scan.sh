@@ -127,8 +127,8 @@ decide() { # <version_vuln 0|1> <precond_met 0|1>
 #   vv=1 + responde 'usage:'  -> backport de distro -> NO_AFECTADO
 #                                (no hay control compensatorio: el binario ya
 #                                no es vulnerable)
-#   vv=1 + error de memoria   -> EXPLOTABLE (no requiere precondición de
-#                                sudoers: la configuración por defecto alcanza)
+#   vv=1 + error 'not a regular file' -> EXPLOTABLE (no requiere precondición
+#                                de sudoers: la configuración por defecto alcanza)
 decide_sudoedit() { # <version_vuln 0|1> <responde_usage 0|1>
   if [ "$1" -eq 0 ]; then echo NO_AFECTADO
   elif [ "$2" -eq 0 ]; then echo EXPLOTABLE
@@ -163,8 +163,9 @@ emit "CVE-2023-22809" "sudoedit/EDITOR" "Alta(7.8)" "$(b $vv)" "$(decide "$(b $v
 # ===== CVE-2021-3156 — Baron Samedit — CVE HISTÓRICA =========================
 vv=false; { ver_in_range "$VER" 1.8.2 1.8.31p2 || ver_in_range "$VER" 1.9.0 1.9.5p1; } && vv=true
 # Chequeo oficial y seguro (Qualys): 'sudoedit -s /' en una versión vulnerable
-# da un error de memoria; en una versión parcheada (o con backport) responde
-# con 'usage:'. No explota nada. Sólo se ejecuta si la versión está en rango.
+# responde con un error del tipo 'not a regular file'; en una versión parcheada
+# (o con backport) responde con 'usage:'. No explota nada. Sólo se ejecuta si la
+# versión está en rango.
 responde_usage=0
 if [ "$(b $vv)" -eq 1 ]; then
   out="$(sudoedit -s / 2>&1 || true)"
@@ -189,7 +190,7 @@ emit "CVE-2021-3156" "BaronSamedit" "Alta(7.8)" "$(b $vv)" \
 vv=false; ver_lt "$VER" 1.8.28 && vv=true
 pm=false; sig_runas_neg && pm=true
 pre="regla_runas_negacion=$([ "$pm" = true ] && echo si || echo no)"
-emit "CVE-2019-14287" "runas-uid-1" "Alta(7.8)" "$(b $vv)" "$(decide "$(b $vv)" "$(b $pm)")" "$pre" \
+emit "CVE-2019-14287" "runas-uid-1" "Alta(8.8)" "$(b $vv)" "$(decide "$(b $vv)" "$(b $pm)")" "$pre" \
      "Requiere regla Runas con ALL y negacion de root" "historica"
 
 printf 'S\t%d\t%d\t%d\n' "$EXPl" "$MITi" "$NOAf"

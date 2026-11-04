@@ -18,7 +18,7 @@ const TSV_V2_BASELINE = [
   "F\tCVE-2025-32462\thost\tBaja(2.8)\t1\tEXPLOTABLE\tregla_host_remoto=si\tRequiere reglas calificadas por Host/Host_Alias\tfoco",
   "F\tCVE-2023-22809\tsudoedit/EDITOR\tAlta(7.8)\t0\tNO_AFECTADO\tregla_sudoedit=no\tRequiere una regla de sudoedit sobre al menos un archivo\thistorica",
   "F\tCVE-2021-3156\tBaronSamedit\tAlta(7.8)\t0\tNO_AFECTADO\tdeteccion_sudoedit_s=fuera_de_rango\tDesbordamiento de heap; explotable en configuracion por defecto\thistorica",
-  "F\tCVE-2019-14287\trunas-uid-1\tAlta(7.8)\t0\tNO_AFECTADO\tregla_runas_negacion=no\tRequiere regla Runas con ALL y negacion de root\thistorica",
+  "F\tCVE-2019-14287\trunas-uid-1\tAlta(8.8)\t0\tNO_AFECTADO\tregla_runas_negacion=no\tRequiere regla Runas con ALL y negacion de root\thistorica",
   "S\t2\t0\t3",
 ].join("\n");
 

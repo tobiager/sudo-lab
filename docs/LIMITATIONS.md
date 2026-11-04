@@ -4,7 +4,7 @@
 misma honestidad con la que se registran los resultados, aquello que el laboratorio **no**
 dice: los límites del escenario, de los controles, de la medición y del despliegue, junto
 con su impacto en la validez del experimento. Este documento alimenta directamente las
-secciones *Metodología* y *Discusión* del paper (ver `docs/PAPER-OUTLINE.md`) y cumple la
+secciones *Metodología* y *Discusión* del paper (ver el paper, Secciones 2 y 4) y cumple la
 promesa de `docs/POC.md` §7: si algo no se puede medir, se documenta — nunca se silencia.
 
 > **Nota de uso.** Cada limitación tiene un identificador (L-1, L-2, …) para que el paper y
@@ -212,7 +212,7 @@ Para no mezclar planos, cada limitación se tipa según el aspecto de validez qu
   los controles.
 - **Qué implica:** el lab responde "¿bloquea?", no "¿cuánto tarda alguien en enterarse?" ni
   "¿qué le cuesta a la operación?". Ambas preguntas quedan como trabajo futuro
-  (`docs/PAPER-OUTLINE.md` §5).
+  del paper (Sección 4.3).
 
 ---
 

@@ -6,10 +6,38 @@
 
 **Laboratorio reproducible de diagnóstico y mitigación de vulnerabilidades de `sudo`.**
 
+[![Licencia MIT](https://img.shields.io/badge/licencia-MIT-green.svg)](LICENSE)
+[![Debian 12](https://img.shields.io/badge/target-Debian%2012-A81D33?logo=debian&logoColor=white)](lab/Dockerfile)
+[![sudo 1.9.15](https://img.shields.io/badge/sudo-1.9.15%20(vulnerable)-red.svg)](lab/Dockerfile)
+[![Docker Compose](https://img.shields.io/badge/Docker-Compose%20v2-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
+[![Next.js 15](https://img.shields.io/badge/dashboard-Next.js%2015-black?logo=nextdotjs&logoColor=white)](dashboard/)
+[![CVEs](https://img.shields.io/badge/CVEs-2025--32463%20%7C%2032462-orange.svg)](docs/SCOPE.md)
+
 </div>
 
-Anexo práctico del trabajo de investigación *"Vulnerabilidades en sudo: escalada de
-privilegios local, explotación en laboratorio y mitigación"* (UNNE – FaCENA).
+Anexo práctico del trabajo de investigación *"Bugs en sudo: escalada de
+privilegios local, diagnóstico en laboratorio y mitigación"* (Redes de Datos /
+Software Seguro, Licenciatura en Sistemas de Información, UNNE – FaCENA).
+
+> [!WARNING]
+> Este repositorio contiene un contenedor **intencionalmente vulnerable** (`sudo` real
+> sin parchear). Está pensado **solo para uso local, educativo y defensivo**: se ejecuta
+> en tu máquina, sin exponer puertos ni atacar sistemas de terceros. No lo despliegues en
+> un host accesible desde la red. Reglas completas en [`SECURITY.md`](SECURITY.md).
+
+<details>
+<summary><b>English summary</b></summary>
+
+`sudo-lab` is a reproducible, intentionally vulnerable Docker lab (Debian 12, `sudo 1.9.15`
+built from source) for an academic paper on local privilege escalation in `sudo`. It
+**diagnoses** per-CVE exposure, **simulates** initial access, applies compensating
+**mitigations** without patching, and optionally **benchmarks** success rate and escalation
+time of operator-supplied PoCs — before and after mitigation. Focus CVEs: CVE-2025-32463
+(chroot/NSS) and CVE-2025-32462 (host option), plus three historical CVEs for context. A
+local-only Next.js dashboard orchestrates everything over `docker exec`. The repo ships **no
+exploits**.
+
+</details>
 
 ## Qué es
 
@@ -38,6 +66,31 @@ operativas y glosario de estados: [`docs/SCOPE.md`](docs/SCOPE.md) (normativo).
 `poc_32462.sh` en `./poc/` (en el paquete de entrega viajan como `poc/*.txt`); sin PoC,
 el benchmark reporta `POC_NO_DISPONIBLE` y el modo diagnóstico + mitigación es igualmente
 funcional.
+
+## Resultados en una corrida
+
+Corrida completa pre/post mitigación (2 PoC × 5 iteraciones cada uno; cifras y protocolo en
+[`docs/RESULTS.md`](docs/RESULTS.md)):
+
+| | Diagnóstico (M2) | Escaladas a root (M3) |
+|---|---|---|
+| **Antes de mitigar** | `CVE-2025-32463` y `CVE-2025-32462` → `EXPLOTABLE` | **10/10 (100 %)** |
+| **Después de mitigar** | ambas → `MITIGADO` | **0/10 (0 %)** |
+
+Los controles son compensatorios (hardening de sudoers + `/tmp noexec`), sin actualizar el
+binario: rompen el exploit, no el arnés de medición. La mitigación completa sigue siendo
+actualizar a `sudo 1.9.17p1` o superior.
+
+<table>
+<tr>
+<td align="center"><b>① Antes — <code>EXPLOTABLE</code></b></td>
+<td align="center"><b>③ Después — <code>MITIGADO</code></b></td>
+</tr>
+<tr>
+<td><img src="assets/dashboard-pre.png" alt="Dashboard: 2 CVEs EXPLOTABLE"></td>
+<td><img src="assets/dashboard-post.png" alt="Dashboard: 2 CVEs MITIGADO"></td>
+</tr>
+</table>
 
 ## Requisitos
 
@@ -72,7 +125,6 @@ pasos A–G): [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md). Problemas fr
 | [`docs/SCOPE.md`](docs/SCOPE.md) | Alcance, glosario de estados y criterio de "mitigado" (**normativo**) |
 | [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) | Activos, adversarios y fronteras de confianza |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Componentes, flujos de datos y decisiones de diseño |
-| [`docs/SECURITY.md`](docs/SECURITY.md) | Capabilities del contenedor (§2.2), riesgos del lab y política del PoC (§3) |
 | [`docs/ATTACK-CHAIN.md`](docs/ATTACK-CHAIN.md) | Cadena de ataque representada y mapeo MITRE ATT&CK |
 | [`docs/METRICS.md`](docs/METRICS.md) | Contrato de métricas: definiciones, fórmulas y formato TSV |
 | [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) | Protocolo de medición (cómo se producen los datos) |
@@ -80,8 +132,7 @@ pasos A–G): [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md). Problemas fr
 | [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md) | Pasos exactos para replicar cada tabla + troubleshooting |
 | [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) | Limitaciones con ID citable (L-1…L-16) para el paper |
 | [`docs/POC.md`](docs/POC.md) | Fuentes, adaptación y convención `.user` de los PoC externos |
-| [`docs/PAPER-OUTLINE.md`](docs/PAPER-OUTLINE.md) | Esqueleto-guía del paper JAIIO (material interno) |
-| [`SECURITY.md`](SECURITY.md) | Reglas breves de uso seguro del laboratorio |
+| [`SECURITY.md`](SECURITY.md) | Reglas de uso seguro, capabilities del contenedor (§2.2) y política del PoC (§3) |
 
 ## Estructura del repositorio
 
@@ -104,3 +155,28 @@ este repo, sin exponer puertos ni atacar sistemas de terceros. Reglas completas 
 [`SECURITY.md`](SECURITY.md). La mitigación completa de las CVEs de 2025 es actualizar a
 `sudo 1.9.17p1` o posterior; los controles del lab son compensatorios para escenarios
 legacy.
+
+## Cómo citar
+
+Si usás este laboratorio o sus resultados, citá el trabajo asociado:
+
+```bibtex
+@misc{sudolab2026,
+  author       = {Orban, Tobias Naim and Esquenon, Ignacio Agustín and
+                  Gomez, Sebastian Exequiel and Llopi, Alvaro Benjamin},
+  title        = {Bugs en sudo: escalada de privilegios local,
+                  diagnóstico en laboratorio y mitigación},
+  year         = {2026},
+  institution  = {Facultad de Ciencias Exactas y Naturales y Agrimensura (FaCENA),
+                  Universidad Nacional del Nordeste (UNNE), Corrientes, Argentina},
+  note         = {Redes de Datos / Software Seguro,
+                  Licenciatura en Sistemas de Información. Anexo práctico: sudo-lab},
+  howpublished = {\url{https://github.com/<tobiager>/sudo-lab}}
+}
+```
+
+> Completá autores y la URL del repositorio según corresponda.
+
+## Licencia
+
+Código bajo licencia MIT (ver [`LICENSE`](LICENSE)); los PoC de terceros no forman parte del repositorio y no están cubiertos por esta licencia.
