@@ -27,7 +27,7 @@ Este contrato obliga a todo el proyecto (scripts, dashboard y paper): una métri
 | Fuente | Campo `pre` de las líneas `F` del TSV: cada par `check=si|no` cuenta como una precondición evaluada. |
 | Unidad | % |
 
-Precondiciones definidas para las CVEs foco: CVE-2025-32463 → `tmp_exec` + `chroot` (2); CVE-2025-32462 → `regla_host_remoto` (1). Total: **3**.
+Precondiciones definidas para las CVEs foco: CVE-2025-32463 → `opcion_chroot` (decide el estado) + `tmp_exec` (informativa, no decide; ver `docs/SCOPE.md` §8) (2); CVE-2025-32462 → `regla_host_remoto` (1). Total: **3**.
 
 ### M2 — Distribución de estados
 
@@ -69,7 +69,7 @@ Estas métricas requieren que el operador haya provisto los PoCs de las CVEs foc
 | Campo | Definición |
 |---|---|
 | Qué mide | Efecto de `mitigate.sh` sobre M3 y M4: el dashboard guarda el benchmark pre-mitigación y lo confronta con el post-mitigación. |
-| Resultado esperado | Tasa de éxito post-mitigación = **0 %** cuando el control aplica (p. ej. `/tmp noexec` para 32463). Si el control no aplica a un PoC, se documenta por qué. |
+| Resultado esperado | CVE-2025-32462: tasa de éxito post-mitigación = **0 %** (la regla calificada por host se elimina). CVE-2025-32463: el remontaje de `/tmp noexec` solo bloquea la variante del PoC que hace *staging* en `/tmp`; no cierra la CVE (`scan.sh` la sigue informando `EXPLOTABLE`, `docs/SCOPE.md` §8). Si el PoC usado monta su staging en otra ruta ejecutable (`$HOME`, `/var/tmp`, `/dev/shm`), la tasa de éxito post-mitigación puede seguir siendo alta: esto se documenta como evidencia de la limitación L-5, no como una falla del control. |
 | Uso en el paper | Evidencia central de la Opción B: permite reportar eficacia de mitigaciones **sin distribuir exploits**. |
 
 ---
