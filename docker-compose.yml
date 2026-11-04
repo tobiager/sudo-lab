@@ -1,30 +1,81 @@
 # =============================================================================
-#  sudo-lab · orquestación del laboratorio
-#  Levantá todo con:  docker compose up -d --build
+#  docker-compose.yml — orquestación del laboratorio sudo-lab
+# -----------------------------------------------------------------------------
+#  Diseño del contenedor target (especificación completa en SECURITY.md §2):
+#    - Política de capabilities: `cap_drop: [ALL]` + `cap_add` de lista blanca.
+#      El contenedor nace sin ninguna capability y se reintroducen SOLO las
+#      SIETE que el escenario necesita (incluida SYS_CHROOT: sin ella el PoC de
+#      CVE-2025-32463 no puede ejecutarse y el pre-test cae a 0 % sin error
+#      visible — lección y tabla de consecuencias en SECURITY.md §2.2).
+#    - `no-new-privileges`: el target queda EXCEPTUADO por diseño — `sudo`
+#      es setuid-root y el control le bloquearía la escalada que es objeto
+#      de estudio. Queda documentado como comentario; cualquier servicio
+#      auxiliar futuro que se agregue al compose DEBE llevar
+#      `security_opt: [no-new-privileges:true]`.
+#    - `init: true`: docker-init (tini) como PID 1 — recolecta procesos
+#      huérfanos y reenvía señales; `sleep infinity` (entrypoint.sh) es su hijo.
+#    - Servicio único `target`, red `labnet` (bridge), sin puertos publicados,
+#      hostname `srv-web`, volúmenes de solo lectura.
+#    - Nota: se omite la clave `version:` — obsoleta en la especificación de
+#      Compose v2 (la agregan solo herramientas muy antiguas).
 # =============================================================================
+
 services:
   target:
     build:
       context: ./lab
       args:
         # Versión de sudo a estudiar. Vulnerable a CVE-2025-32463: 1.9.14–1.9.17.
+        # Override: SUDO_VERSION=1.9.17p1 docker compose up -d --build (ver parche).
         SUDO_VERSION: "${SUDO_VERSION:-1.9.15}"
-    image: sudo-lab-target
-    container_name: sudo-lab-target
-    hostname: srv-web
-    # Montamos los scripts como volumen: editás scan.sh/mitigate.sh sin rebuild.
-    volumes:
-      - ./scripts:/opt/lab/scripts:ro
-    # /tmp como tmpfs (ejecutable por defecto). mitigate.sh lo remonta noexec
-    # como control compensatorio; por eso necesita CAP SYS_ADMIN.
+    image: sudo-lab-target:1.9.15     # mantener sincronizada con ARG SUDO_VERSION del Dockerfile
+    container_name: sudo-lab-target   # nombre fijo: lo asumen LAB_CONTAINER (dashboard,
+                                      # lib/lab.ts) y todos los `docker exec` documentados
+    hostname: srv-web                 # escenario de la clínica; la regla de `auditor` se
+                                      # ejercita con `sudo -h clinica-legacy` (CVE-2025-32462:
+                                      # `-h` no verifica la existencia del host)
+
+    # --- PID 1 decente ---------------------------------------------------------
+    # docker-init (tini) asume PID 1: los PoC que compilan y bifurcan procesos
+    # dejan menos huérfanos, y `docker compose stop` apaga limpio porque tini
+    # reenvía SIGTERM al proceso principal.
+    init: true
+
+    # --- Capabilities al mínimo -------------------------------------------------
+    cap_drop: [ALL]                   # el contenedor nace SIN privilegios especiales
+    cap_add:                          # se reintroducen SOLO las necesarias (tabla completa
+                                      # de justificaciones y consecuencias: SECURITY.md §2.2):
+      - CHOWN                         #   useradd -m + chown de los homes del escenario (entrypoint.sh)
+      - DAC_OVERRIDE                  #   respaldo/restauración del sudoers y lecturas de root sobre archivos ajenos (mitigate.sh, benchmark.sh lee /root/)
+      - FOWNER                        #   instalación del sudoers (0440) y metadatos (chmod/utimens) sobre archivos cuyo dueño no coincide con el proceso
+      - SETGID                        #   cambio de grupo en `su`/`sudo`: núcleo del método (degradar a usuarios raso antes de cada PoC)
+      - SETUID                        #   cambio de usuario en `su`/`sudo`: sudo es setuid-root y necesita restablecer euid al degradar
+      - SYS_ADMIN                     #   `mount -o remount` de /tmp en mitigate.sh (control noexec,nosuid,nodev de CVE-2025-32463).
+                                      #   Es la capability más amplia del conjunto — justificación completa en SECURITY.md §2.3
+      - SYS_CHROOT                    #   permite al exploit chwoot ejecutar `sudo -R` (chroot) para la CVE-2025-32463;
+                                      #   sin ella el pre-test cae a 0/5 sin error visible (lección en SECURITY.md §2.2)
+    # --- Exceptuación documentada de no-new-privileges -------------------------
+    # El target NO declara `security_opt: [no-new-privileges:true]` porque sudo
+    # es setuid-root: el control impediría la elevación de privilegios y
+    # anularía el experimento. Esta exceptuación es deliberada y está explicada
+    # en SECURITY.md §2.3.
+
     tmpfs:
       - /tmp:exec,mode=1777
-    # SYS_ADMIN reduce el aislamiento del contenedor: se usa solo para remontar /tmp.
-    cap_add:
-      - SYS_ADMIN
-    # El contenedor queda aislado; sólo lo tocan el dashboard y 'docker exec'.
+
+    volumes:
+      - ./scripts:/opt/lab/scripts:ro  # arnés: scan/mitigate/foothold/benchmark (editable sin rebuild)
+      - ./poc:/opt/lab/poc:ro          # PoC externos; NUNCA se versionan (docs/POC.md §2)
+
+    environment:
+      LAB_POC_DIR: /opt/lab/poc        # contrato del arnés (benchmark.sh)
+      # LAB_POC_ITERATIONS: 5          # opcional: N iteraciones por PoC (default 5, tope 50)
+      # LAB_POC_TIMEOUT: 30            # opcional: segundos por iteración (default 30, tope 300)
+
     networks:
       - labnet
+    # Sin `ports:`: el target no expone nada al host ni a la red externa
+    # (docs/THREAT-MODEL.md, adversario Ad4).
 
 networks:
   labnet:

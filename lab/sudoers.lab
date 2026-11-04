@@ -17,7 +17,7 @@ operador ALL=(ALL, !root) /usr/bin/vi
 
 # Señal de CVE-2025-32462 — regla calificada por un host distinto al actual.
 # El contenedor se llama 'srv-web'; esta regla es para 'clinica-legacy'.
-auditor clinica-legacy=(ALL) /usr/bin/less
+auditor clinica-legacy=(ALL) NOPASSWD: /usr/bin/less
 
 # Señal de CVE-2023-22809 — regla de sudoedit sobre un archivo acotado,
 # abusable vía la variable EDITOR con '--'.

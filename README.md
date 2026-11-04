@@ -8,159 +8,102 @@
 
 </div>
 
-Anexo práctico del trabajo de investigación *“Vulnerabilidades en sudo: escalada de
-privilegios local, explotación en laboratorio y mitigación”* — Redes de Datos /
-Software Seguro, Licenciatura en Sistemas de Información, UNNE – FaCENA.
+Anexo práctico del trabajo de investigación *"Vulnerabilidades en sudo: escalada de
+privilegios local, explotación en laboratorio y mitigación"* (UNNE – FaCENA).
 
----
+## Qué es
 
-## Uso y alcance
+Un contenedor Docker **intencionalmente vulnerable** (Debian 12, `sudo 1.9.15` compilado
+desde fuente) más tres instrumentos defensivos que corren dentro de él:
 
-Este proyecto es **educativo y defensivo**. Se ejecuta en un contenedor Docker
-**aislado** y está pensado para *fundamentar* el informe con evidencia reproducible:
-demuestra que un sistema cumple las precondiciones de explotación de varias CVE de
-`sudo` y prueba que las mitigaciones las cierran.
+- **`scan.sh` — Diagnóstico de exposición (①):** determina, CVE por CVE, si el sistema es
+  explotable combinando versión + precondiciones reales. No explota nada.
+- **`mitigate.sh` — Mitigación (③):** aplica controles compensatorios sin parchear
+  (hardening de sudoers + `/tmp noexec`) y verifica con re-scan; `--reset` restaura el
+  estado vulnerable.
+- **`benchmark.sh` — Medición (④, opcional):** mide tasa de éxito y tiempo de escalada de
+  un PoC externo provisto por el operador, antes y después de mitigar.
 
-**Qué incluye** (todo defensivo y reproducible):
+El acceso inicial se **simula** con el usuario `webuser` (`foothold.sh`, ②): no hay
+servicio web ni payload de RCE — la cadena se narra en
+[`docs/ATTACK-CHAIN.md`](docs/ATTACK-CHAIN.md). Un dashboard (Next.js 15, solo
+`localhost:3000`) orquesta todo vía `docker exec`.
 
-- El **target vulnerable** (contenedor con una versión concreta de `sudo`).
-- Un motor de **diagnóstico de exposición** (`scan.sh`): detecta, CVE por CVE, si el
-  sistema es explotable combinando versión + precondiciones reales.
-- Un motor de **mitigación** (`mitigate.sh`): aplica controles compensatorios y permite
-  re-escanear para verificar el efecto.
-- Un **dashboard** (Next.js 15 + Tailwind v4) que orquesta todo y muestra los registros
-  en vivo.
+**Alcance:** 2 CVEs foco (CVE-2025-32463 chroot/NSS, CVE-2025-32462 opción host) y 3
+CVEs históricas como contexto (2023-22809, 2021-3156, 2019-14287). Definiciones
+operativas y glosario de estados: [`docs/SCOPE.md`](docs/SCOPE.md) (normativo).
 
-**Qué NO incluye, a propósito:** el repositorio **no contiene los payloads ofensivos**
-(ni el webshell de RCE del acceso inicial, ni el exploit de escalada a root). Escribir
-un exploit funcional queda fuera del alcance, aun con fin educativo. El diagnóstico ya
-demuestra la explotabilidad de forma reproducible; para la demostración ofensiva en
-vivo, la metodología está documentada en el informe y se apoya en PoC **públicos** ya
-citados (p. ej. el repositorio `chwoot` para CVE-2025-32463). Ejecutarlos, si la cátedra
-lo requiere, es responsabilidad de quien corre el laboratorio, siempre dentro de este
-entorno aislado.
-
----
-
-## Arquitectura
-
-```
-┌───────────────────────────────┐        docker exec         ┌──────────────────────────┐
-│  Dashboard (Next.js 15)        │ ─────────────────────────► │  Contenedor target       │
-│  - Diagnosticar                │                            │  (sudo-lab-target)       │
-│  - Aplicar mitigaciones        │   scan.sh / mitigate.sh    │  hostname: srv-web       │
-│  - Re-escanear / Restaurar     │ ◄───────────────────────── │  sudo 1.9.15 (vulnerable)│
-│  - Logs en vivo                │     TSV + logs (stderr)    │  /tmp tmpfs · SYS_ADMIN  │
-└───────────────────────────────┘                            └──────────────────────────┘
-```
-
-El dashboard nunca “ataca”: ejecuta los scripts de diagnóstico/mitigación dentro del
-contenedor mediante `docker exec` y renderiza el resultado.
-
----
+**PoC externos (Opción B):** el repositorio versionado **no distribuye exploits**
+(política en [`SECURITY.md`](SECURITY.md) §3). El operador coloca `poc_32463.sh` y
+`poc_32462.sh` en `./poc/` (en el paquete de entrega viajan como `poc/*.txt`); sin PoC,
+el benchmark reporta `POC_NO_DISPONIBLE` y el modo diagnóstico + mitigación es igualmente
+funcional.
 
 ## Requisitos
 
-- Docker + Docker Compose
-- Node.js 18.18+ (para el dashboard)
-
----
+- Docker + Docker Compose v2 (puede verificarse con `make preflight`)
+- Node.js 22 LTS (solo para el dashboard; versión fijada en `dashboard/.nvmrc`)
 
 ## Puesta en marcha
 
-### 1) Levantar el target
-
 ```bash
-docker compose up -d --build
+docker compose up -d --build --wait    # o: make up   (compila sudo y espera healthy)
+
+cd dashboard && npm install && npm run dev    # http://localhost:3000
 ```
 
-Esto compila `sudo 1.9.15` (vulnerable a CVE-2025-32463) dentro del contenedor
-`sudo-lab-target`. Para estudiar otro rango, cambiá `SUDO_VERSION` en
-`docker-compose.yml`.
+Flujo sugerido en el panel: **① Diagnosticar** → **② Simular foothold** →
+**③ Aplicar mitigaciones + re-escanear** (los hallazgos pasan de `EXPLOTABLE` a
+`MITIGADO`) → comparar → **↺ Restaurar** para repetir la demo. El botón **④ Lanzar
+ataque** se habilita solo con PoC presente en `./poc/`.
 
-Verificación rápida por consola:
+Por consola, los mismos comandos son `make scan | foothold | mitigate | reset | benchmark`
+(`make help` lista todo). En Windows (Docker Desktop) no se necesita `make`: tabla de
+equivalencias en [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md) §3.1.
 
-```bash
-docker exec sudo-lab-target bash /opt/lab/scripts/scan.sh   # diagnóstico
-```
+Para **reproducir las tablas de resultados** completas (protocolo de medición pre/post,
+pasos A–G): [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md). Problemas frecuentes:
+§6 de ese mismo documento.
 
-### 2) Levantar el dashboard
+## Documentación
 
-```bash
-cd dashboard
-npm install
-npm run dev
-# abrí http://localhost:3000
-```
-
-Flujo sugerido en el panel: **① Diagnosticar** → **② Aplicar mitigaciones + re-escanear**
-→ comparás cómo los hallazgos pasan de `EXPLOTABLE` a `MITIGADO`. **↺ Restaurar** vuelve
-al estado vulnerable para repetir la demo.
-
-> El dashboard usa la variable `LAB_CONTAINER` (por defecto `sudo-lab-target`) para
-> saber contra qué contenedor ejecutar.
-
----
-
-## CVEs evaluadas
-
-La demostración se centra en **CVE-2025-32463** y **CVE-2025-32462**, las dos que afectan
-a `sudo 1.9.15`. Las otras tres se evalúan y se nombran para completar el panorama: con
-esta versión el diagnóstico las informa como `NO_AFECTADO`. Para verlas `EXPLOTABLE` hay
-que reconstruir con una versión más antigua (`SUDO_VERSION`).
-
-| CVE | Vector | Rango vulnerable | Precondición que chequea el lab |
-| --- | --- | --- | --- |
-| CVE-2025-32463 | chroot / NSS (crítica 9.3) | 1.9.14 – 1.9.17 | versión en rango + opción `--chroot` (no depende de sudoers ni de `/tmp`) |
-| CVE-2025-32462 | opción host (baja 2.8) | 1.8.8–1.8.32 / 1.9.0–1.9.17 | regla de sudoers calificada por host remoto |
-| CVE-2023-22809 | `sudoedit` + EDITOR (alta 7.8) | 1.8.0 – 1.9.12p1 | regla de `sudoedit` en sudoers |
-| CVE-2021-3156 | Baron Samedit (alta 7.8) | 1.8.2–1.8.31p2 / 1.9.0–1.9.5p1 | chequeo seguro `sudoedit -s /` (método Qualys) |
-| CVE-2019-14287 | Runas `-u#-1` (alta 7.8) | < 1.8.28 | regla Runas con `ALL` y negación de root |
-
-La lógica de estado es: *sin versión vulnerable* → `NO_AFECTADO`; *versión vulnerable +
-precondición presente* → `EXPLOTABLE`; *versión vulnerable pero precondición cerrada* →
-`MITIGADO`.
-
----
-
-## Mitigaciones que aplica `mitigate.sh`
-
-1. **Hardening de `sudoers`** — elimina la negación en Runas (2019), la regla de
-   `sudoedit` amplia (2023) y la regla calificada por host remoto (2462). Con eso
-   CVE-2025-32462 pasa a `MITIGADO`.
-2. **`/tmp` noexec,nosuid,nodev** — defensa en profundidad. **No** cierra CVE-2025-32463:
-   el directorio chroot puede estar en cualquier ruta escribible, por lo que el
-   diagnóstico la sigue marcando `EXPLOTABLE`.
-
-> La corrección real de las dos CVE de 2025 es **actualizar a `sudo 1.9.17p1`** o
-> posterior. Para comprobarlo:
->
-> ```bash
-> SUDO_VERSION=1.9.17p1 docker compose up -d --build
-> docker exec sudo-lab-target bash /opt/lab/scripts/scan.sh   # ambas: NO_AFECTADO
-> ```
-
----
+| Documento | Contenido |
+|---|---|
+| [`docs/SCOPE.md`](docs/SCOPE.md) | Alcance, glosario de estados y criterio de "mitigado" (**normativo**) |
+| [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) | Activos, adversarios y fronteras de confianza |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Componentes, flujos de datos y decisiones de diseño |
+| [`docs/SECURITY.md`](docs/SECURITY.md) | Capabilities del contenedor (§2.2), riesgos del lab y política del PoC (§3) |
+| [`docs/ATTACK-CHAIN.md`](docs/ATTACK-CHAIN.md) | Cadena de ataque representada y mapeo MITRE ATT&CK |
+| [`docs/METRICS.md`](docs/METRICS.md) | Contrato de métricas: definiciones, fórmulas y formato TSV |
+| [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) | Protocolo de medición (cómo se producen los datos) |
+| [`docs/RESULTS.md`](docs/RESULTS.md) | **Resultados empíricos** (fuente única de cifras y tablas) |
+| [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md) | Pasos exactos para replicar cada tabla + troubleshooting |
+| [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) | Limitaciones con ID citable (L-1…L-16) para el paper |
+| [`docs/POC.md`](docs/POC.md) | Fuentes, adaptación y convención `.user` de los PoC externos |
+| [`docs/PAPER-OUTLINE.md`](docs/PAPER-OUTLINE.md) | Esqueleto-guía del paper JAIIO (material interno) |
+| [`SECURITY.md`](SECURITY.md) | Reglas breves de uso seguro del laboratorio |
 
 ## Estructura del repositorio
 
 ```
 sudo-lab/
-├── docker-compose.yml        # orquestación del target
-├── lab/
-│   ├── Dockerfile            # compila el sudo vulnerable
-│   ├── entrypoint.sh         # crea usuarios + instala sudoers de laboratorio
-│   └── sudoers.lab           # reglas con las "señales" de cada CVE
-├── scripts/                  # se montan en el contenedor en /opt/lab/scripts
-│   ├── lib.sh                # logging + comparador de versiones de sudo
-│   ├── scan.sh               # diagnóstico de exposición (TSV + logs)
-│   └── mitigate.sh           # mitigaciones + --reset
-└── dashboard/                # Next.js 15 + Tailwind v4
-    ├── app/                  # UI + API routes (docker exec)
-    └── lib/lab.ts            # runner + parser del TSV
+├── docker-compose.yml        # orquestación del target (cap_drop ALL + 7 capabilities)
+├── Makefile                  # interfaz única de comandos (up/scan/mitigate/…)
+├── lab/                      # Dockerfile (sudo vulnerable + HEALTHCHECK), entrypoint, sudoers
+├── scripts/                  # scan · mitigate · foothold · benchmark · preflight (montados :ro)
+├── dashboard/                # Next.js 15: UI + API routes (docker exec)
+│   └── lib/lab.ts            # runner + parser del TSV
+├── poc/                      # PoC externos (sin versionar; en la entrega: poc_*.txt)
+└── docs/                     # documentación académica (índice arriba)
 ```
 
----
+## Uso responsable
+
+Proyecto **educativo y defensivo**: se ejecuta en máquina local, dentro de los contenedores de
+este repo, sin exponer puertos ni atacar sistemas de terceros. Reglas completas en
+[`SECURITY.md`](SECURITY.md). La mitigación completa de las CVEs de 2025 es actualizar a
+`sudo 1.9.17p1` o posterior; los controles del lab son compensatorios para escenarios
+legacy (CVE-2025-32463 en particular no tiene mitigación de configuración real).
 
 ## Mapeo con el informe
 
