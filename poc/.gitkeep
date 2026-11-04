@@ -1,0 +1,4 @@
+# Mantiene ./poc/ versionado para el bind-mount ./poc:/opt/lab/poc:ro del
+# docker-compose (si no, falla en un clon limpio).
+# Los PoC reales (poc_*.sh) los coloca el OPERADOR aquí y NO se versionan
+# (están ignorados por /poc/ en .gitignore; ver SECURITY.md §3 y docs/POC.md).

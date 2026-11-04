@@ -7,7 +7,7 @@ Si algún otro archivo del repositorio entra en contradicción con este document
 
 ## 1. Propósito
 
-`sudo-lab` es un laboratorio **educativo y defensivo** que diagnostica, mitiga y —opcionalmente— mide la explotación de vulnerabilidades de escalada de privilegios local en `sudo`, sobre un contenedor reproducible con una versión real y vulnerable del binario. Es el anexo práctico del trabajo de investigación *“Vulnerabilidades en sudo: escalada de privilegios local, explotación en laboratorio y mitigación”* (Redes de Datos / Software Seguro, Licenciatura en Sistemas de Información, UNNE – FaCENA).
+`sudo-lab` es un laboratorio **educativo y defensivo** que diagnostica, mitiga y —opcionalmente— mide la explotación de vulnerabilidades de escalada de privilegios local en `sudo`, sobre un contenedor reproducible con una versión real y vulnerable del binario. Es el anexo práctico del trabajo de investigación *“Bugs en sudo: escalada de privilegios local, diagnóstico en laboratorio y mitigación”* (Redes de Datos / Software Seguro, Licenciatura en Sistemas de Información, UNNE – FaCENA).
 
 El laboratorio fundamenta el informe con **evidencia reproducible**: demuestra que el sistema cumple las precondiciones de explotación de cada CVE y prueba que las mitigaciones las cierran.
 
@@ -17,7 +17,7 @@ El laboratorio fundamenta el informe con **evidencia reproducible**: demuestra q
 
 1. **Target reproducible.** Contenedor Debian 12 con `sudo 1.9.15` compilado desde el tarball oficial del proyecto sudo (versión parametrizable vía `SUDO_VERSION`).
 2. **Diagnóstico de exposición** (`scan.sh`). Por cada CVE, combina la versión del binario contra los rangos vulnerables conocidos con las precondiciones reales del sistema (reglas de `sudoers`, `/tmp` ejecutable, disponibilidad de la opción `chroot`) y emite un estado en formato TSV que consume el dashboard. No explota nada: es el equivalente a una verificación de *blue team*.
-3. **Mitigación sin parchear** (`mitigate.sh`). Controles compensatorios para el escenario *legacy* del informe: hardening de `sudoers` y remontaje de `/tmp` como `noexec,nosuid,nodev`. Incluye verificación con re-scan y restauración (`--reset`). Cierra CVE-2025-32462; CVE-2025-32463 **no tiene control compensatorio real** y el re-scan debe seguir informándola `EXPLOTABLE` (§8).
+3. **Mitigación sin parchear** (`mitigate.sh`). Controles compensatorios para el escenario *legacy* del informe: hardening de `sudoers` y remontaje de `/tmp` como `noexec,nosuid,nodev`. Incluye verificación con re-scan y restauración (`--reset`).
 4. **Escenario de la clínica con foothold simulado.** La cadena `red → acceso inicial → usuario raso → sudo → root` se representa con el usuario `webuser`; el vector web se narra, no se implementa (ver §6).
 5. **Benchmark opcional con PoC externo (Opción B).** Si el operador provee los scripts `poc_32463.sh` y `poc_32462.sh` en `LAB_POC_DIR`, el laboratorio mide **tasa de éxito** y **tiempo de escalada** antes y después de mitigar. Sin PoC, el benchmark reporta `POC_NO_DISPONIBLE` y el proyecto sigue siendo funcional y completo (modo diagnóstico + mitigación).
 6. **Dashboard.** Panel local (solo `localhost`) que orquesta los scripts mediante `docker exec` y muestra hallazgos, registros en vivo y métricas.
@@ -42,10 +42,10 @@ Objeto central del paper y única superficie donde se contempla la medición con
 
 | CVE | Vector | Rango vulnerable | Precondición que evalúa el lab | Severidad |
 |---|---|---|---|---|
-| CVE-2025-32463 | `chroot` / carga de NSS (`-R`, `--chroot`) | 1.9.14 – 1.9.17 | versión en rango + opción `chroot` disponible en el binario | Crítica (9.3) |
+| CVE-2025-32463 | `chroot` / carga de NSS (`-R`, `--chroot`) | 1.9.14 – 1.9.17 | versión en rango + `/tmp` ejecutable (la disponibilidad de la opción `chroot` en el binario es informativa; el estado lo decide `/tmp` ejecutable, según `scan.sh`) | Crítica (9.3) |
 | CVE-2025-32462 | regla de `sudoers` calificada por host remoto | 1.8.8 – 1.8.32 / 1.9.0 – 1.9.17 | regla calificada por un host distinto del local (en el lab: `clinica-legacy`) | Baja (2.8) |
 
-CVE-2025-32463 es crítica porque escala a root **sin que el usuario figure en `sudoers`**: basta un `sudo` vulnerable y un directorio `chroot` controlado por el atacante. Por eso el `webuser` del escenario —que no tiene ninguna regla de sudo— es un foothold válido para ella. Esa misma razón es la que hace que **ningún control de `sudoers` ni de montaje de `/tmp` cierre esta CVE**: el atacante no depende de una regla preexistente ni de que `/tmp` en particular sea ejecutable, porque el directorio de chroot puede ser cualquiera que el propio usuario controle (p. ej. su `$HOME`). `/tmp` ejecutable se reporta como dato informativo (relevante solo para el PoC concreto que use esa ruta), nunca como precondición que decide el estado de la CVE. Ver §8.
+CVE-2025-32463 es crítica porque escala a root **sin que el usuario figure en `sudoers`**: basta un `sudo` vulnerable y un directorio `chroot` controlado por el atacante. Por eso el `webuser` del escenario —que no tiene ninguna regla de sudo— es un foothold válido para ella.
 
 ---
 
@@ -98,10 +98,9 @@ Definición operativa y reglas que rigen toda mitigación del laboratorio:
 
 1. Un hallazgo pasa a `MITIGADO` cuando, manteniéndose la versión en rango vulnerable, **todas** sus precondiciones quedan cerradas por controles aplicados por `mitigate.sh` y **verificados con re-scan** (no por aserción del script).
 2. **Regla de oro del hardening:** `mitigate.sh` **nunca agrega** reglas de `sudoers`; solo elimina o restringe. Todo cambio se valida con `visudo -c` global y con un diff del conjunto de reglas antes/después.
-3. Ejemplo canónico — CVE-2025-32462: **eliminación** de la regla calificada por host remoto, sin reemplazarla por `ALL` (un reemplazo con un comando interactivo como `less` reconstruiría la escalada). Re-scan debe informar `MITIGADO`.
-4. **CVE-2025-32463 es la excepción deliberada a la regla 1: nunca llega a `MITIGADO`.** Su precondición es la disponibilidad de la opción `chroot` en el binario (capacidad de compilación, no de configuración), así que ningún control de `sudoers` ni de montaje cierra la vía general. `mitigate.sh` igual aplica, por defensa en profundidad, el remontaje de `/tmp` como `noexec,nosuid,nodev` y el comentado de líneas con firma de chroot (`CHROOT=`, `--chroot`, `-R`) en `sudoers`, si existieran — pero esto bloquea únicamente un PoC concreto que dependa de esa ruta puntual, no la clase de ataque, y el re-scan debe seguir informando `EXPLOTABLE` para esta CVE. Afirmar que queda `MITIGADO` sería una violación directa de este documento normativo (ver `docs/LIMITATIONS.md` L-5).
-5. Explícitamente **no** es mitigación: agregar `Defaults !use_chroot` (esa opción no existe en `sudoers` y rompería la validación) ni `chmod u-s /usr/bin/sudo` (rompería el propio laboratorio; queda documentado como opción extrema, no por defecto).
-6. `MITIGADO` no es sinónimo de `NO_AFECTADO`: el primero indica un **control compensatorio** sobre una versión vulnerable; el segundo indica una **versión fuera de rango** o un backport verificado en vivo.
+3. Ejemplos canónicos: CVE-2025-32463 → `/tmp` remontado `noexec,nosuid,nodev` (y comentario de las líneas con `CHROOT=`, `--chroot` o `-R` del `sudoers`, si existieran); CVE-2025-32462 → **eliminación** de la regla calificada por host remoto, sin reemplazarla por `ALL` (un reemplazo con un comando interactivo como `less` reconstruiría la escalada).
+4. Explícitamente **no** es mitigación: agregar `Defaults !use_chroot` (esa opción no existe en `sudoers` y rompería la validación) ni `chmod u-s /usr/bin/sudo` (rompería el propio laboratorio; queda documentado como opción extrema, no por defecto).
+5. `MITIGADO` no es sinónimo de `NO_AFECTADO`: el primero indica un **control compensatorio** sobre una versión vulnerable; el segundo indica una **versión fuera de rango** o un backport verificado en vivo.
 
 ---
 

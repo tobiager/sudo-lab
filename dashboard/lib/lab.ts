@@ -80,7 +80,10 @@ const CONTAINER = labContainerName();
 
 /** Ejecuta un script del laboratorio dentro del contenedor vía `docker exec`. */
 export async function runInLab(
-  script: "scan.sh" | "mitigate.sh",
+  // benchmark.sh se admite SÓLO para su sonda instantánea `--check` (GET /api/poc):
+  // el benchmark real (POST /api/benchmark) NO usa este runner porque necesita un
+  // timeout mucho mayor; aquí los 60 s por defecto son de sobra para un --check.
+  script: "scan.sh" | "mitigate.sh" | "benchmark.sh",
   args: string[] = []
 ): Promise<{ stdout: string; stderr: string }> {
   try {
